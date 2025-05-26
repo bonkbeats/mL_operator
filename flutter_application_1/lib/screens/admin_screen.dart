@@ -18,6 +18,7 @@ class _AdminScreenState extends State<AdminScreen> {
       StorageService(); // Instantiate StorageService
   List<dynamic> _users = [];
   List<dynamic> _images = [];
+  List<dynamic> _allImages = []; // Add a list to store all images
   dynamic _selectedUser; // To hold the selected user for filtering
   bool _isLoadingData = true;
   String? _errorLoadingData;
@@ -42,15 +43,17 @@ class _AdminScreenState extends State<AdminScreen> {
       // Fetch users
       final fetchedUsers = await _storageService.getAllUsers(token);
       // Add an option to view all users
-      final allUsersOption = {'id': null, 'username': 'All Users'};
+      final allUsersOption = {'_id': null, 'username': 'All Users'};
       _users = [
         allUsersOption,
         ...fetchedUsers
       ]; // Add 'All Users' option at the beginning
 
-      // Fetch all images initially
-      final fetchedImages = await _storageService.getAdminImages(token);
-      _images = fetchedImages;
+      // Fetch all images initially and store in _allImages
+      _allImages =
+          await _storageService.getAdminImages(token); // Store all images
+      _images = List.from(_allImages); // Initialize _images with all images
+      _selectedUser = allUsersOption; // Set default selected user to All Users
     } catch (e) {
       _errorLoadingData = e.toString();
       print('Error loading admin data: $_errorLoadingData');
@@ -73,10 +76,12 @@ class _AdminScreenState extends State<AdminScreen> {
         throw Exception('Authentication token not available.');
       }
 
-      final userId = user != null ? user['id'] : null;
+      final userId = user != null ? user['_id'] : null;
+      // Call backend API to get filtered images
       final fetchedImages =
           await _storageService.getAdminImages(token, userId: userId);
-      _images = fetchedImages;
+      _images =
+          fetchedImages; // Update _images with the result from the backend
     } catch (e) {
       _errorLoadingData = e.toString();
       print('Error filtering admin images: $_errorLoadingData');
@@ -130,9 +135,9 @@ class _AdminScreenState extends State<AdminScreen> {
                   leading: const Icon(Icons.logout),
                   title: const Text('Logout'),
                   onTap: () async {
-                    Navigator.pop(context); // Close the drawer
                     await context.read<AuthProvider>().logout();
                     if (mounted) {
+                      // Navigate first, then close drawer if needed (though pushReplacement handles this)
                       Navigator.of(context).pushAndRemoveUntil(
                         MaterialPageRoute(builder: (_) => const LoginScreen()),
                         (Route<dynamic> route) =>
@@ -215,9 +220,9 @@ class _AdminScreenState extends State<AdminScreen> {
                                   child: Image.network(
                                     imageUrl,
                                     fit: BoxFit.cover,
-                                    errorBuilder:
-                                        (context, error, stackTrace) =>
-                                            Center(child: Icon(Icons.error)),
+                                    errorBuilder: (context, error,
+                                            stackTrace) =>
+                                        const Center(child: Icon(Icons.error)),
                                     loadingBuilder:
                                         (context, child, loadingProgress) {
                                       if (loadingProgress == null) return child;
