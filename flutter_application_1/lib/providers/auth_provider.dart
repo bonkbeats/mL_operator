@@ -215,20 +215,28 @@ class AuthProvider with ChangeNotifier {
   // Logout
   Future<void> logout() async {
     try {
+      print('Attempting to log out...');
       // Sign out from Supabase
       await _supabase.auth.signOut();
+      print('Supabase sign out successful.');
 
       // Clear local storage
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove('userData');
+      print('Removed userData from SharedPreferences.');
       await prefs.remove('token');
+      print('Removed token from SharedPreferences.');
       await prefs.remove('supabase_password'); // Remove stored password
+      print('Removed supabase_password from SharedPreferences.');
 
       _user = null;
       _token = null;
+      print('AuthProvider state cleared.');
       notifyListeners();
+      print('Listeners notified.');
     } catch (e) {
       _error = e.toString();
+      print('Logout error: $_error');
       notifyListeners();
     }
   }
