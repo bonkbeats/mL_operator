@@ -3,6 +3,8 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import '../services/storage_service.dart';
+import '../providers/auth_provider.dart';
 
 class AuthService {
   static String get supabaseUrl => dotenv.env['SUPABASE_URL'] ?? '';
@@ -198,9 +200,25 @@ class AuthService {
 
   // Get stored user data
   Future<Map<String, dynamic>?> getUserData() async {
-    final prefs = await SharedPreferences.getInstance();
-    final userData = prefs.getString(userKey);
-    return userData != null ? jsonDecode(userData) : null;
+    print('getUserData() called');
+    try {
+      final response = await http.get(
+        Uri.parse('${StorageService.apiUrl}/auth/user'),
+        headers: {'Authorization': 'Bearer ${AuthProvider().token}'},
+      );
+      print('getUserData() response status: ${response.statusCode}');
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        print('getUserData() response body: $data');
+        return data;
+      } else {
+        print('getUserData() error: ${response.body}');
+        return null;
+      }
+    } catch (e) {
+      print('getUserData() exception: $e');
+      return null;
+    }
   }
 
   // Save authentication data
