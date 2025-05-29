@@ -59,18 +59,20 @@ class AuthProvider with ChangeNotifier {
 
   // Initialize auth state
   Future<void> initialize() async {
+    print('AuthProvider.initialize() called');
     _isLoading = true;
     notifyListeners();
 
     try {
+      print('Calling getUserData()');
       final userData = await _authService.getUserData();
+      print('getUserData() returned: $userData');
       if (userData != null) {
         _user = userData;
 
         // Try to restore Supabase session
         try {
           if (_supabase.auth.currentUser == null) {
-            // If no session, try to sign in with stored credentials
             final email = userData['email'] as String?;
             final prefs = await SharedPreferences.getInstance();
             final password = prefs.getString('supabase_password');
@@ -84,14 +86,14 @@ class AuthProvider with ChangeNotifier {
         } catch (e) {
           print('Error restoring Supabase session: $e');
         }
-
-        // Set loading to false only after all async ops
-        _isLoading = false;
-        notifyListeners();
       }
+      // Set loading to false regardless of whether userData is null or not
+      _isLoading = false;
+      notifyListeners();
     } catch (e) {
+      print('Error in initialize(): $e');
       _error = e.toString();
-      _isLoading = false; // Also set loading to false on error
+      _isLoading = false;
       notifyListeners();
     }
   }
