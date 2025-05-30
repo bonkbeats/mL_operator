@@ -1,0 +1,12 @@
+[
+{
+  "directory": "C:/Users/Acer/Desktop/sauravs/fuck/flutter_application_1/android/app/.cxx/RelWithDebInfo/g3hk4d1y/x86_64",
+  "command": "C:\\Users\\Acer\\AppData\\Local\\Android\\Sdk\\ndk\\26.1.10909125\\toolchains\\llvm\\prebuilt\\windows-x86_64\\bin\\clang++.exe --target=x86_64-none-linux-android21 --sysroot=C:/Users/Acer/AppData/Local/Android/Sdk/ndk/26.1.10909125/toolchains/llvm/prebuilt/windows-x86_64/sysroot -Dimage_compare_EXPORTS -IC:/Users/Acer/Desktop/sauravs/fuck/flutter_application_1/android/app/src/main/cpp -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security   -O2 -g -DNDEBUG -fPIC -o CMakeFiles\\image_compare.dir\\image_compare.cpp.o -c C:\\Users\\Acer\\Desktop\\sauravs\\fuck\\flutter_application_1\\android\\app\\src\\main\\cpp\\image_compare.cpp",
+  "file": "C:\\Users\\Acer\\Desktop\\sauravs\\fuck\\flutter_application_1\\android\\app\\src\\main\\cpp\\image_compare.cpp"
+},
+{
+  "directory": "C:/Users/Acer/Desktop/sauravs/fuck/flutter_application_1/android/app/.cxx/RelWithDebInfo/g3hk4d1y/x86_64",
+  "command": "C:\\Users\\Acer\\AppData\\Local\\Android\\Sdk\\ndk\\26.1.10909125\\toolchains\\llvm\\prebuilt\\windows-x86_64\\bin\\clang++.exe --target=x86_64-none-linux-android21 --sysroot=C:/Users/Acer/AppData/Local/Android/Sdk/ndk/26.1.10909125/toolchains/llvm/prebuilt/windows-x86_64/sysroot -Dimage_compare_EXPORTS -IC:/Users/Acer/Desktop/sauravs/fuck/flutter_application_1/android/app/src/main/cpp -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security   -O2 -g -DNDEBUG -fPIC -o CMakeFiles\\image_compare.dir\\ImageCompare.cpp.o -c C:\\Users\\Acer\\Desktop\\sauravs\\fuck\\flutter_application_1\\android\\app\\src\\main\\cpp\\ImageCompare.cpp",
+  "file": "C:\\Users\\Acer\\Desktop\\sauravs\\fuck\\flutter_application_1\\android\\app\\src\\main\\cpp\\ImageCompare.cpp"
+}
+]

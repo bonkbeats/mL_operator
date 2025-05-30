@@ -1,0 +1,3 @@
+C:/Users/Acer/Desktop/sauravs/fuck/flutter_application_1/android/app/.cxx/Debug/88401q5r/arm64-v8a/CMakeFiles/image_compare.dir
+C:/Users/Acer/Desktop/sauravs/fuck/flutter_application_1/android/app/.cxx/Debug/88401q5r/arm64-v8a/CMakeFiles/edit_cache.dir
+C:/Users/Acer/Desktop/sauravs/fuck/flutter_application_1/android/app/.cxx/Debug/88401q5r/arm64-v8a/CMakeFiles/rebuild_cache.dir

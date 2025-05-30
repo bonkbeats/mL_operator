@@ -1,0 +1,23 @@
+# ninja log v5
+1	9758	7700291518406164	CMakeFiles/image_compare.dir/image_compare.cpp.o	be69a6d438aef6b1
+8	10600	7700291526879027	CMakeFiles/image_compare.dir/ImageCompare.cpp.o	9dd3f49254103796
+10601	10738	7700291528321434	C:/Users/Acer/Desktop/sauravs/fuck/flutter_application_1/build/app/intermediates/cxx/Debug/88401q5r/obj/arm64-v8a/libimage_compare.so	7ca4a179a557d26c
+10	1647	7700301569734209	CMakeFiles/image_compare.dir/ImageCompare.cpp.o	9dd3f49254103796
+5	1779	7700301571099829	CMakeFiles/image_compare.dir/image_compare.cpp.o	be69a6d438aef6b1
+1779	1897	7700301572344788	C:/Users/Acer/Desktop/sauravs/fuck/flutter_application_1/build/app/intermediates/cxx/Debug/88401q5r/obj/arm64-v8a/libimage_compare.so	7ca4a179a557d26c
+4	1310	7700337535032584	CMakeFiles/image_compare.dir/image_compare.cpp.o	be69a6d438aef6b1
+1311	1435	7700337536372991	C:/Users/Acer/Desktop/sauravs/fuck/flutter_application_1/build/app/intermediates/cxx/Debug/88401q5r/obj/arm64-v8a/libimage_compare.so	7ca4a179a557d26c
+12	411	7700353315926092	C:/Users/Acer/Desktop/sauravs/fuck/flutter_application_1/build/app/intermediates/cxx/Debug/88401q5r/obj/arm64-v8a/libimage_compare.so	7ca4a179a557d26c
+10	236	7700356692286073	C:/Users/Acer/Desktop/sauravs/fuck/flutter_application_1/build/app/intermediates/cxx/Debug/88401q5r/obj/arm64-v8a/libimage_compare.so	7ca4a179a557d26c
+10	292	7700367134257871	C:/Users/Acer/Desktop/sauravs/fuck/flutter_application_1/build/app/intermediates/cxx/Debug/88401q5r/obj/arm64-v8a/libimage_compare.so	7ca4a179a557d26c
+15	986	7700382130483798	C:/Users/Acer/Desktop/sauravs/fuck/flutter_application_1/build/app/intermediates/cxx/Debug/88401q5r/obj/arm64-v8a/libimage_compare.so	7ca4a179a557d26c
+11	1748	7700383768083387	C:/Users/Acer/Desktop/sauravs/fuck/flutter_application_1/build/app/intermediates/cxx/Debug/88401q5r/obj/arm64-v8a/libimage_compare.so	7ca4a179a557d26c
+0	15	0	clean	f952b2c62131f2b2
+0	13	0	clean	f952b2c62131f2b2
+1	12	0	clean	f952b2c62131f2b2
+0	10	0	clean	f952b2c62131f2b2
+46	9810	7702636226191068	CMakeFiles/image_compare.dir/ImageCompare.cpp.o	9dd3f49254103796
+65	10240	7702636230478435	CMakeFiles/image_compare.dir/image_compare.cpp.o	be69a6d438aef6b1
+10240	10478	7702636232910856	C:/Users/Acer/Desktop/sauravs/fuck/flutter_application_1/build/app/intermediates/cxx/Debug/88401q5r/obj/arm64-v8a/libimage_compare.so	7ca4a179a557d26c
+24	465	7702689444425293	C:/Users/Acer/Desktop/sauravs/fuck/flutter_application_1/build/app/intermediates/cxx/Debug/88401q5r/obj/arm64-v8a/libimage_compare.so	7ca4a179a557d26c
+9	447	7702696573596442	C:/Users/Acer/Desktop/sauravs/fuck/flutter_application_1/build/app/intermediates/cxx/Debug/88401q5r/obj/arm64-v8a/libimage_compare.so	7ca4a179a557d26c

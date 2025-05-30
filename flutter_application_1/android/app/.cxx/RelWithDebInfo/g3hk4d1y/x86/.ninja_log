@@ -1,0 +1,9 @@
+# ninja log v5
+4	1550	7700342309908572	CMakeFiles/image_compare.dir/ImageCompare.cpp.o	9c0fdb07cd0dd378
+0	2063	7700342315131327	CMakeFiles/image_compare.dir/image_compare.cpp.o	ef6b83db76c47985
+2064	2166	7700342316183284	C:/Users/Acer/Desktop/sauravs/fuck/flutter_application_1/build/app/intermediates/cxx/RelWithDebInfo/g3hk4d1y/obj/x86/libimage_compare.so	2bc632fe1393e068
+5	137	7700349493181299	C:/Users/Acer/Desktop/sauravs/fuck/flutter_application_1/build/app/intermediates/cxx/RelWithDebInfo/g3hk4d1y/obj/x86/libimage_compare.so	2bc632fe1393e068
+6	162	7700385938579801	C:/Users/Acer/Desktop/sauravs/fuck/flutter_application_1/build/app/intermediates/cxx/RelWithDebInfo/g3hk4d1y/obj/x86/libimage_compare.so	2bc632fe1393e068
+5	242	7701957580423257	C:/Users/Acer/Desktop/sauravs/fuck/flutter_application_1/build/app/intermediates/cxx/RelWithDebInfo/g3hk4d1y/obj/x86/libimage_compare.so	2bc632fe1393e068
+0	11	0	clean	f952b2c62131f2b2
+0	10	0	clean	f952b2c62131f2b2

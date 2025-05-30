@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' as supabase;
 import 'providers/auth_provider.dart';
 import 'screens/login_screen.dart';
 import 'screens/home_screen.dart';
@@ -14,7 +14,7 @@ void main() async {
   await dotenv.load();
 
   // Initialize Supabase
-  await Supabase.initialize(
+  await supabase.Supabase.initialize(
     url: StorageService.supabaseUrl,
     anonKey: StorageService.supabaseAnonKey,
   );
@@ -86,9 +86,3 @@ class _AuthWrapperState extends State<AuthWrapper> {
     );
   }
 }
-
-
-// static const String SUPABASE_URL = 'https://qhouwszsjarppmdvgcof.supabase.co';
-// static const String SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFob3V3c3pzamFycHBtZHZnY29mIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDc4NTYyMTksImV4cCI6MjA2MzQzMjIxOX0._be1TC983Bcpwlu_mAnEeDV2GlxYLeLsfRL7YKG4CdM';
-// static const String ml = 'ml';
-// API_URI => 'http://192.168.3.189:5000/api';

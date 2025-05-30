@@ -23,3 +23,4 @@ plugins {
 }
 
 include ":app"
+include ':document_scanner_flutter'

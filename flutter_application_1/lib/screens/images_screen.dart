@@ -189,7 +189,7 @@ class _ImagesScreenState extends State<ImagesScreen> {
               image, supabaseUrl); // Display cloud if local missing
         } else {
           // Should not happen often with correct data, but handle defensively
-          return Card(
+          return const Card(
             child: Center(
                 child:
                     Text('Invalid image data')), // Placeholder for invalid data
@@ -203,8 +203,9 @@ class _ImagesScreenState extends State<ImagesScreen> {
   Widget _buildImageCard(Map<String, dynamic> imageMetadata, File imageFile) {
     final imageId =
         imageMetadata['_id'] as String?; // Assuming _id is returned by backend
-    if (imageId == null)
+    if (imageId == null) {
       return const SizedBox.shrink(); // Cannot delete without ID
+    }
 
     return GestureDetector(
       onTap: () => _showImagePreview(imageFile), // Preview local file
@@ -252,8 +253,9 @@ class _ImagesScreenState extends State<ImagesScreen> {
       Map<String, dynamic> imageMetadata, String imageUrl) {
     final imageId =
         imageMetadata['_id'] as String?; // Assuming _id is returned by backend
-    if (imageId == null)
+    if (imageId == null) {
       return const SizedBox.shrink(); // Cannot delete without ID
+    }
 
     return GestureDetector(
       onTap: () =>
@@ -316,7 +318,7 @@ class _ImagesScreenState extends State<ImagesScreen> {
 
   // Updated delete method to take MongoDB image ID
   Future<void> _deleteImage(String imageId) async {
-    print('Attempting to delete image with ID: ${imageId}');
+    print('Attempting to delete image with ID: $imageId');
     final token = context.read<AuthProvider>().token;
     if (token == null) {
       print('Delete failed: No authentication token.');
@@ -331,7 +333,7 @@ class _ImagesScreenState extends State<ImagesScreen> {
           .firstWhere((img) => img['_id'] == imageId, orElse: () => {});
       final supabaseUrl = imageMetadata['supabaseUrl'] as String?;
       if (supabaseUrl != null) {
-        print('Deleting corresponding Supabase file for ${imageId}...');
+        print('Deleting corresponding Supabase file for $imageId...');
         // You would need a method in StorageService to delete from Supabase by URL or path.
         // This might involve extracting the path from the URL.
         // For now, just log and indicate it needs implementation.
@@ -342,7 +344,7 @@ class _ImagesScreenState extends State<ImagesScreen> {
       // Optionally, delete the local file if it exists
       final localPath = imageMetadata['localPath'] as String?;
       if (localPath != null && await File(localPath).exists()) {
-        print('Deleting local file for ${imageId}...');
+        print('Deleting local file for $imageId...');
         await File(localPath).delete();
         print('Local file deleted.');
       }
@@ -358,7 +360,7 @@ class _ImagesScreenState extends State<ImagesScreen> {
       );
       // No need to _loadImages() again as state is updated locally
     } catch (e) {
-      print('Error deleting image ${imageId}: $e');
+      print('Error deleting image $imageId: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error deleting image: $e')),
       );
@@ -436,20 +438,15 @@ class _ImagesScreenState extends State<ImagesScreen> {
         return;
       }
 
-      print('Found metadata ${imageId}. Uploading to Supabase...');
+      print('Found metadata $imageId. Uploading to Supabase...');
       final supabaseUrl = await _storageService.saveImageToSupabase(
         imageFile.path, // Pass the file path (String)
         userId,
-        imageId!, // Pass the imageId (String)
+        imageId, // Pass the imageId (String)
       );
 
-      if (supabaseUrl == null) {
-        Navigator.of(context).pop(); // Close loading dialog
-        throw Exception('Failed to upload image to Supabase');
-      }
-
       // Update metadata in MongoDB with Supabase URL and isUploaded: true
-      print('Upload successful. Updating metadata ${imageId}...');
+      print('Upload successful. Updating metadata $imageId...');
       await _storageService.updateImageUrl(
           imageId: imageId,
           supabaseUrl: supabaseUrl,

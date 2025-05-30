@@ -4,7 +4,6 @@ import 'package:path_provider/path_provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:uuid/uuid.dart';
-import 'package:path/path.dart' as path;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 
@@ -113,13 +112,13 @@ class StorageService {
         }
 
         try {
-          print('Uploading image ${imageId} to Supabase...');
+          print('Uploading image $imageId to Supabase...');
           final supabaseUrl =
               await saveImageToSupabase(localPath, userId, imageId);
           print('Upload successful: $supabaseUrl');
 
           // Update MongoDB with Supabase URL and set isUploaded to true
-          print('Updating metadata for image ${imageId} in MongoDB...');
+          print('Updating metadata for image $imageId in MongoDB...');
           final updateResponse = await http.put(
             Uri.parse('$apiUrl/images/url'),
             headers: {
@@ -133,16 +132,16 @@ class StorageService {
           );
 
           if (updateResponse.statusCode == 200) {
-            print('Metadata update successful for ${imageId}');
+            print('Metadata update successful for $imageId');
             // Optionally delete local file after successful sync
             // await file.delete();
             // print('Deleted local file: $localPath');
           } else {
             print(
-                'Failed to update metadata for ${imageId}: ${updateResponse.statusCode} - ${updateResponse.body}');
+                'Failed to update metadata for $imageId: ${updateResponse.statusCode} - ${updateResponse.body}');
           }
         } catch (e) {
-          print('Error during sync process for ${imageId}: $e');
+          print('Error during sync process for $imageId: $e');
           // Continue with next image even if one fails
         }
       }
@@ -260,7 +259,7 @@ class StorageService {
 
   // Delete image metadata from MongoDB via backend
   Future<void> deleteImage(String imageId, String token) async {
-    print('Attempting to delete image metadata ${imageId}...');
+    print('Attempting to delete image metadata $imageId...');
     final response = await http.delete(
       Uri.parse('$apiUrl/images/$imageId'), // Use /images/:id route
       headers: {
@@ -270,10 +269,10 @@ class StorageService {
 
     if (response.statusCode != 200) {
       print(
-          'Failed to delete image metadata ${imageId}: ${response.statusCode} - ${response.body}');
+          'Failed to delete image metadata $imageId: ${response.statusCode} - ${response.body}');
       throw Exception('Failed to delete image');
     }
-    print('Successfully deleted image metadata ${imageId}');
+    print('Successfully deleted image metadata $imageId');
   }
 
   // Get images from Supabase (This might not be needed if you always get URLs from MongoDB)
@@ -310,7 +309,7 @@ class StorageService {
       {required String imageId,
       required String supabaseUrl,
       required String token}) async {
-    print('Attempting to update image URL ${imageId} in MongoDB...');
+    print('Attempting to update image URL $imageId in MongoDB...');
     final response = await http.put(
       Uri.parse('$apiUrl/images/url'),
       headers: {
@@ -325,9 +324,9 @@ class StorageService {
 
     if (response.statusCode != 200) {
       print(
-          'Failed to update image URL ${imageId}: ${response.statusCode} - ${response.body}');
+          'Failed to update image URL $imageId: ${response.statusCode} - ${response.body}');
       throw Exception('Failed to update image URL');
     }
-    print('Successfully updated image URL ${imageId}');
+    print('Successfully updated image URL $imageId');
   }
 }
