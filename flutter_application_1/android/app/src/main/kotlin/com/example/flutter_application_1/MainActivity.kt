@@ -40,10 +40,7 @@ class MainActivity: FlutterActivity() {
                                 return@setMethodCallHandler
                             }
 
-                            if (bitmap1.width != bitmap2.width || bitmap1.height != bitmap2.height) {
-                                result.error("IMAGE_SIZE_MISMATCH", "Images must be the same size", null)
-                                return@setMethodCallHandler
-                            }
+                            // Removed image size check here
 
                             val buffer1 = ByteBuffer.allocate(bitmap1.byteCount)
                             bitmap1.copyPixelsToBuffer(buffer1)
@@ -98,12 +95,9 @@ class MainActivity: FlutterActivity() {
                                 return@setMethodCallHandler
                             }
 
-                            if (bitmap1.width != bitmap2.width || bitmap1.height != bitmap2.height) {
-                                result.error("IMAGE_SIZE_MISMATCH", "Images must be the same size", null)
-                                return@setMethodCallHandler
-                            }
+                            // Removed image size check here
 
-                             val buffer1 = ByteBuffer.allocate(bitmap1.byteCount)
+                            val buffer1 = ByteBuffer.allocate(bitmap1.byteCount)
                             bitmap1.copyPixelsToBuffer(buffer1)
                             val pixels1 = buffer1.array()
 

@@ -7,9 +7,12 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 add_library(image_compare SHARED
     image_compare.cpp
     ImageCompare.cpp
-    ImageCompare.h)
+    ImageCompare.h
+    openn.hpp
+)
 
 # Link libraries
 target_link_libraries(image_compare
     android
-    log) 
+    log
+)

@@ -1,4 +1,4 @@
-// Updated ImageCompare.h
+// Modified ImageCompare.h to allow automatic resizing before comparison
 #pragma once
 
 #include "openn.hpp"
@@ -24,10 +24,24 @@ private:
         int similar_pixels = 0;
 
         for (int i = 0; i < total_pixels; ++i) {
-            if (std::abs(img1.data[i] - img2.data[i]) < 10) // small difference allowed
+            if (std::abs(img1.data[i] - img2.data[i]) < 10)
                 ++similar_pixels;
         }
         return static_cast<double>(similar_pixels) / total_pixels;
+    }
+
+    cv::Mat resizeToMatch(const cv::Mat &src, int new_rows, int new_cols) {
+        cv::Mat resized(new_rows, new_cols, cv::CV_8UC3);
+        for (int y = 0; y < new_rows; ++y) {
+            for (int x = 0; x < new_cols; ++x) {
+                int src_y = y * src.rows / new_rows;
+                int src_x = x * src.cols / new_cols;
+                for (int c = 0; c < 3; ++c) {
+                    resized.data[(y * new_cols + x) * 3 + c] = src.data[(src_y * src.cols + src_x) * 3 + c];
+                }
+            }
+        }
+        return resized;
     }
 
 public:
@@ -92,10 +106,11 @@ public:
             return;
         }
 
-        if (img1.rows != img2.rows || img1.cols != img2.cols) {
-            std::cerr << "Images must be of the same size." << std::endl;
-            return;
-        }
+        int target_rows = std::min(img1.rows, img2.rows);
+        int target_cols = std::min(img1.cols, img2.cols);
+
+        img1 = resizeToMatch(img1, target_rows, target_cols);
+        img2 = resizeToMatch(img2, target_rows, target_cols);
 
         double similarity = computeSimilarity(img1, img2);
         std::cout << "Image similarity: " << similarity * 100 << "%" << std::endl;
@@ -106,7 +121,7 @@ public:
 
         std::string winname = "ImageCompare";
         cv::namedWindow(winname, cv::WINDOW_AUTOSIZE);
-        bigImg = cv::Mat(img1.rows, img1.cols, cv::CV_8UC3);
+        bigImg = cv::Mat(target_rows, target_cols, cv::CV_8UC3);
 
         double dl = 1.0 / 100.0;
         double alpha = 0.5;

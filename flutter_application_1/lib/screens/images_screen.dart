@@ -1,8 +1,12 @@
 import 'dart:io';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import '../providers/auth_provider.dart';
 import '../services/storage_service.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:uuid/uuid.dart';
 
 class ImagesScreen extends StatefulWidget {
   const ImagesScreen({Key? key}) : super(key: key);
@@ -15,11 +19,37 @@ class _ImagesScreenState extends State<ImagesScreen> {
   final StorageService _storageService = StorageService();
   List<Map<String, dynamic>> _allUserImagesMetadata = [];
   bool _isLoading = true;
+  final _uuid = Uuid();
 
   @override
   void initState() {
     super.initState();
     _loadImages();
+    _setupConnectivityListener();
+  }
+
+  void _setupConnectivityListener() {
+    Connectivity().onConnectivityChanged.listen((ConnectivityResult result) {
+      if (result != ConnectivityResult.none) {
+        _syncOfflineImages();
+      }
+    });
+  }
+
+  Future<void> _syncOfflineImages() async {
+    final token = context.read<AuthProvider>().token;
+    if (token == null) return;
+
+    try {
+      await _storageService.syncOfflineImages(token);
+      _loadImages(); // Reload images after sync
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error syncing offline images: $e')),
+        );
+      }
+    }
   }
 
   Future<void> _loadImages() async {
@@ -28,23 +58,85 @@ class _ImagesScreenState extends State<ImagesScreen> {
       final token = context.read<AuthProvider>().token;
       if (token == null) throw Exception('No authentication token');
 
-      // Fetch all user image metadata from backend
-      final allImages = await _storageService.getLocalImages(token);
+      List<Map<String, dynamic>> allImages = [];
+
+      // Try to load images from backend if online
+      if (await _storageService.isConnected()) {
+        try {
+          allImages = await _storageService.getLocalImages(token);
+        } catch (e) {
+          print('Error loading from backend: $e');
+          // Continue with local images even if backend fails
+        }
+      }
+
+      // Load offline images
+      final offlineDataDir = await getApplicationDocumentsDirectory();
+      final offlineDataFile =
+          File('${offlineDataDir.path}/offline_images.json');
+      List<Map<String, dynamic>> offlineImages = [];
+
+      if (await offlineDataFile.exists()) {
+        final content = await offlineDataFile.readAsString();
+        offlineImages = List<Map<String, dynamic>>.from(json.decode(content));
+      }
+
+      // Load local images from documents directory
+      final localDir = await getApplicationDocumentsDirectory();
+      final localFiles = await localDir.list().toList();
+      final localImages = localFiles
+          .where((file) =>
+              file.path.toLowerCase().endsWith('.jpg') ||
+              file.path.toLowerCase().endsWith('.jpeg') ||
+              file.path.toLowerCase().endsWith('.png'))
+          .map((file) => {
+                '_id': _uuid.v4(),
+                'localPath': file.path,
+                'isUploaded': false,
+                'createdAt': DateTime.now().toIso8601String(),
+                'isLocalOnly': true,
+              })
+          .toList();
+
+      // Combine all images, ensuring no duplicates
+      final Set<String> processedPaths = {};
+      final List<Map<String, dynamic>> combinedImages = [];
+
+      // Helper function to add image if not already processed
+      void addIfNotProcessed(Map<String, dynamic> image) {
+        final path = image['localPath'] as String?;
+        if (path != null && !processedPaths.contains(path)) {
+          processedPaths.add(path);
+          combinedImages.add(image);
+        }
+      }
+
+      // Add images in priority order: local files first, then offline metadata, then backend
+      for (var image in localImages) {
+        addIfNotProcessed(image);
+      }
+      for (var image in offlineImages) {
+        addIfNotProcessed(image);
+      }
+      for (var image in allImages) {
+        addIfNotProcessed(image);
+      }
+
       setState(() {
-        _allUserImagesMetadata = allImages; // Store all metadata
+        _allUserImagesMetadata = combinedImages;
       });
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error loading images: $e')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error loading images: $e')),
+        );
+      }
     } finally {
       setState(() => _isLoading = false);
     }
   }
 
   Future<void> _showSaveDialog(String imageUrl) async {
-    // This dialog is typically for saving cloud images locally.
-    // The logic here might need adjustment based on if the cloud image is already linked to a local file via metadata.
     return showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -59,10 +151,7 @@ class _ImagesScreenState extends State<ImagesScreen> {
             TextButton(
               onPressed: () async {
                 Navigator.of(context).pop();
-                // You would need to fetch the image bytes from the imageUrl
-                // and then save them to a file, similar to the initial capture save.
-                // This might require a new method in StorageService or handling here.
-                // For now, let's just show a message that this functionality needs implementation.
+                // TODO: Implement download and local save from URL if needed
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
                       content:
@@ -77,40 +166,15 @@ class _ImagesScreenState extends State<ImagesScreen> {
     );
   }
 
-  // The _saveImageLocally method here seems intended for saving a cloud image URL's content locally.
-  // This is different from the saveImageLocally on the Home screen which saves a captured File.
-  // Let's rename this or rethink this flow.
-  // For now, I will comment out the body as the dialog has a placeholder message.
-  /*
-  Future<void> _saveImageLocallyFromUrl(String imageUrl) async {
-    try {
-      final token = context.read<AuthProvider>().token;
-      if (token == null) throw Exception('No authentication token');
-
-      // This method needs to fetch the image from the URL and save it as a new local file.
-      // The existing saveImageLocally in StorageService saves a File object.
-      // You would need to download the image bytes from imageUrl first.
-      // await _storageService.saveImageLocally(File(imageUrl), token);
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Image saved successfully')), // This message is misleading now
-      );
-      _loadImages(); // Refresh the image list
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error saving image: $e')), // This error message is misleading now
-      );
-    }
-  }
-  */
-
   @override
   Widget build(BuildContext context) {
-    // Filter images based on upload status for tabs
+    // Update the filtering logic to properly handle local images
     final localOnlyImages = _allUserImagesMetadata
-        .where(
-            (img) => !(img['isUploaded'] ?? false) && img['localPath'] != null)
+        .where((img) =>
+            (img['localPath'] != null) &&
+            (!(img['isUploaded'] ?? false) || img['isLocalOnly'] == true))
         .toList();
+
     final uploadedImages = _allUserImagesMetadata
         .where(
             (img) => (img['isUploaded'] ?? false) && img['supabaseUrl'] != null)
@@ -121,8 +185,14 @@ class _ImagesScreenState extends State<ImagesScreen> {
         title: const Text('My Images'),
         actions: [
           IconButton(
+            icon: const Icon(Icons.delete_sweep),
+            onPressed: _showClearLocalStorageDialog,
+            tooltip: 'Clear Local Storage',
+          ),
+          IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: _loadImages,
+            tooltip: 'Refresh Images',
           ),
         ],
       ),
@@ -141,10 +211,8 @@ class _ImagesScreenState extends State<ImagesScreen> {
                   Expanded(
                     child: TabBarView(
                       children: [
-                        _buildImagesGrid(localOnlyImages,
-                            isLocalTab: true), // Pass filtered list
-                        _buildImagesGrid(uploadedImages,
-                            isLocalTab: false), // Pass filtered list
+                        _buildImagesGrid(localOnlyImages, isLocalTab: true),
+                        _buildImagesGrid(uploadedImages, isLocalTab: false),
                       ],
                     ),
                   ),
@@ -154,7 +222,6 @@ class _ImagesScreenState extends State<ImagesScreen> {
     );
   }
 
-  // Unified method to build image grids for both tabs
   Widget _buildImagesGrid(List<Map<String, dynamic>> images,
       {required bool isLocalTab}) {
     if (images.isEmpty) {
@@ -175,46 +242,34 @@ class _ImagesScreenState extends State<ImagesScreen> {
         final localPath = image['localPath'] as String?;
         final supabaseUrl = image['supabaseUrl'] as String?;
 
-        // Decide which image to display and what actions are available
         if (isLocalTab && localPath != null) {
-          // Display local image and offer upload/delete local
           return _buildImageCard(image, File(localPath));
         } else if (!isLocalTab && supabaseUrl != null) {
-          // Display cloud image and offer download/delete cloud (from metadata)
           return _buildCloudImageCard(image, supabaseUrl);
         } else if (isLocalTab && supabaseUrl != null) {
-          // Local tab, but only cloud URL available (e.g., local deleted after sync)
-          // Display cloud image (linked via metadata) and maybe offer download locally
-          return _buildCloudImageCard(
-              image, supabaseUrl); // Display cloud if local missing
+          return _buildCloudImageCard(image, supabaseUrl);
         } else {
-          // Should not happen often with correct data, but handle defensively
           return const Card(
-            child: Center(
-                child:
-                    Text('Invalid image data')), // Placeholder for invalid data
+            child: Center(child: Text('Invalid image data')),
           );
         }
       },
     );
   }
 
-  // Updated to accept image metadata map and File
   Widget _buildImageCard(Map<String, dynamic> imageMetadata, File imageFile) {
-    final imageId =
-        imageMetadata['_id'] as String?; // Assuming _id is returned by backend
-    if (imageId == null) {
-      return const SizedBox.shrink(); // Cannot delete without ID
-    }
+    final imageId = imageMetadata['_id'] as String?;
+    final isLocalOnly = imageMetadata['isLocalOnly'] as bool? ?? false;
+    final isUploaded = imageMetadata['isUploaded'] as bool? ?? false;
 
     return GestureDetector(
-      onTap: () => _showImagePreview(imageFile), // Preview local file
+      onTap: () => _showImagePreview(imageFile),
       child: Card(
         clipBehavior: Clip.antiAlias,
         child: Stack(
           fit: StackFit.expand,
           children: [
-            Image.file(imageFile, fit: BoxFit.cover), // Display local file
+            Image.file(imageFile, fit: BoxFit.cover),
             Positioned(
               bottom: 0,
               left: 0,
@@ -225,47 +280,60 @@ class _ImagesScreenState extends State<ImagesScreen> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
-                    // Option to upload if not already uploaded (check metadata?)
-                    if (!(imageMetadata['isUploaded'] ?? false))
+                    if (!isUploaded)
                       IconButton(
                         icon:
                             const Icon(Icons.cloud_upload, color: Colors.white),
-                        onPressed: () => _uploadToCloud(
-                            imageFile), // Use existing upload method
+                        onPressed: () => _uploadToCloud(imageFile),
+                        tooltip: 'Upload to cloud',
                       ),
                     IconButton(
                       icon: const Icon(Icons.delete, color: Colors.white),
-                      onPressed: () =>
-                          _deleteImage(imageId), // Pass MongoDB ID for deletion
+                      onPressed: () => _deleteImage(imageId ?? ''),
+                      tooltip: 'Delete image',
                     ),
                   ],
                 ),
               ),
             ),
+            if (isLocalOnly)
+              Positioned(
+                top: 8,
+                right: 8,
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.black54,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Text(
+                    'Local Only',
+                    style: TextStyle(color: Colors.white, fontSize: 12),
+                  ),
+                ),
+              ),
           ],
         ),
       ),
     );
   }
 
-  // Updated to accept image metadata map and URL string
   Widget _buildCloudImageCard(
       Map<String, dynamic> imageMetadata, String imageUrl) {
-    final imageId =
-        imageMetadata['_id'] as String?; // Assuming _id is returned by backend
+    final imageId = imageMetadata['_id'] as String?;
     if (imageId == null) {
-      return const SizedBox.shrink(); // Cannot delete without ID
+      return const SizedBox.shrink();
     }
 
     return GestureDetector(
-      onTap: () =>
-          _showSaveDialog(imageUrl), // Option to save cloud image locally
+      onTap: () => _showSaveDialog(imageUrl),
       child: Card(
         clipBehavior: Clip.antiAlias,
         child: Stack(
           fit: StackFit.expand,
           children: [
-            Image.network(imageUrl, fit: BoxFit.cover), // Display network image
+            Image.network(imageUrl, fit: BoxFit.cover),
             Positioned(
               bottom: 0,
               left: 0,
@@ -278,13 +346,11 @@ class _ImagesScreenState extends State<ImagesScreen> {
                   children: [
                     IconButton(
                       icon: const Icon(Icons.download, color: Colors.white),
-                      onPressed: () => _showSaveDialog(
-                          imageUrl), // Trigger save locally dialog
+                      onPressed: () => _showSaveDialog(imageUrl),
                     ),
                     IconButton(
                       icon: const Icon(Icons.delete, color: Colors.white),
-                      onPressed: () =>
-                          _deleteImage(imageId), // Pass MongoDB ID for deletion
+                      onPressed: () => _deleteImage(imageId),
                     ),
                   ],
                 ),
@@ -304,7 +370,7 @@ class _ImagesScreenState extends State<ImagesScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Image.file(imageFile), // Preview local file
+              Image.file(imageFile),
               TextButton(
                 onPressed: () => Navigator.of(context).pop(),
                 child: const Text('Close'),
@@ -316,68 +382,87 @@ class _ImagesScreenState extends State<ImagesScreen> {
     );
   }
 
-  // Updated delete method to take MongoDB image ID
   Future<void> _deleteImage(String imageId) async {
-    print('Attempting to delete image with ID: $imageId');
-    final token = context.read<AuthProvider>().token;
-    if (token == null) {
-      print('Delete failed: No authentication token.');
-      return;
-    }
     try {
-      // Delete metadata from MongoDB via backend
-      await _storageService.deleteImage(imageId, token);
+      final token = context.read<AuthProvider>().token;
+      if (token == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please login to delete images')),
+        );
+        return;
+      }
 
-      // Optionally, delete the file from Supabase if uploaded
+      // Find the image metadata
       final imageMetadata = _allUserImagesMetadata
           .firstWhere((img) => img['_id'] == imageId, orElse: () => {});
-      final supabaseUrl = imageMetadata['supabaseUrl'] as String?;
-      if (supabaseUrl != null) {
-        print('Deleting corresponding Supabase file for $imageId...');
-        // You would need a method in StorageService to delete from Supabase by URL or path.
-        // This might involve extracting the path from the URL.
-        // For now, just log and indicate it needs implementation.
-        print('Supabase file deletion not fully implemented yet.');
-        // await _storageService.deleteSupabaseFile(supabaseUrl, token); // Needs implementation
+
+      if (imageMetadata.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Image not found')),
+        );
+        return;
       }
 
-      // Optionally, delete the local file if it exists
+      // Delete local file if it exists
       final localPath = imageMetadata['localPath'] as String?;
-      if (localPath != null && await File(localPath).exists()) {
-        print('Deleting local file for $imageId...');
-        await File(localPath).delete();
-        print('Local file deleted.');
+      if (localPath != null) {
+        final localFile = File(localPath);
+        if (await localFile.exists()) {
+          await localFile.delete();
+        }
       }
 
-      // Update the local list of images metadata
-      setState(() {
-        _allUserImagesMetadata.removeWhere((img) => img['_id'] == imageId);
-      });
+      // If it's a cloud image, try to delete from backend
+      if (imageMetadata['isUploaded'] == true) {
+        try {
+          await _storageService.deleteImage(imageId, token);
+        } catch (e) {
+          print('Error deleting from backend: $e');
+          // Continue with local cleanup even if backend delete fails
+        }
+      }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('Image deleted successfully')), // Confirm deletion
-      );
-      // No need to _loadImages() again as state is updated locally
+      // Remove from offline images if it exists there
+      final offlineDataDir = await getApplicationDocumentsDirectory();
+      final offlineDataFile =
+          File('${offlineDataDir.path}/offline_images.json');
+      if (await offlineDataFile.exists()) {
+        final content = await offlineDataFile.readAsString();
+        final offlineImages =
+            List<Map<String, dynamic>>.from(json.decode(content));
+        final updatedOfflineImages =
+            offlineImages.where((img) => img['_id'] != imageId).toList();
+        await offlineDataFile.writeAsString(json.encode(updatedOfflineImages));
+      }
+
+      // Update UI
+      if (mounted) {
+        setState(() {
+          _allUserImagesMetadata.removeWhere((img) => img['_id'] == imageId);
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Image deleted successfully')),
+        );
+      }
     } catch (e) {
-      print('Error deleting image $imageId: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error deleting image: $e')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error deleting image: $e')),
+        );
+      }
     }
   }
 
-  // _deleteCloudImage is no longer needed as deletion is handled by _deleteImage based on metadata
-  /*
-  Future<void> _deleteCloudImage(String imageUrl) async {
-    // Implement cloud image deletion
-  }
-  */
-
   Future<void> _uploadToCloud(File imageFile) async {
-    print('Attempting to upload image from ImagesScreen...');
+    if (!await _storageService.isConnected()) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content:
+                Text('No internet connection. Please try again when online.')),
+      );
+      return;
+    }
 
-    // Show loading dialog
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -389,81 +474,142 @@ class _ImagesScreenState extends State<ImagesScreen> {
     );
 
     try {
-      final user = context.read<AuthProvider>().user;
-      if (user == null) {
-        print('Upload failed: User not authenticated.');
-        Navigator.of(context).pop(); // Close loading dialog
+      final token = context.read<AuthProvider>().token;
+      if (token == null) {
+        Navigator.of(context).pop();
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Please login to upload images')),
         );
         return;
       }
 
-      // Check if file still exists
-      if (!await imageFile.exists()) {
-        print('Upload failed: Local file no longer exists');
-        Navigator.of(context).pop(); // Close loading dialog
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Image file not found')),
-        );
-        return;
-      }
+      // Save image metadata to MongoDB
+      final result = await _storageService.saveImageLocally(imageFile, token);
+      final metadata = result['metadata'];
 
-      final isConnected = await _storageService.isConnected();
-      if (!isConnected) {
-        Navigator.of(context).pop(); // Close loading dialog
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('No internet connection')),
-        );
-        print('Upload failed: No internet connection.');
-        return;
-      }
-
-      // Find the metadata for this local file to get its MongoDB ID
-      final imageMetadata = _allUserImagesMetadata.firstWhere(
-          (img) => img['localPath'] == imageFile.path,
-          orElse: () => {});
-
-      final imageId = imageMetadata['_id'] as String?;
-      final userId = user['id'] as String?;
-
-      if (imageId == null || userId == null) {
-        Navigator.of(context).pop(); // Close loading dialog
-        print(
-            'Upload failed: Could not find metadata or userId for local file ${imageFile.path}');
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text('Could not find image metadata for upload.')),
-        );
-        return;
-      }
-
-      print('Found metadata $imageId. Uploading to Supabase...');
+      // Upload to Supabase
       final supabaseUrl = await _storageService.saveImageToSupabase(
-        imageFile.path, // Pass the file path (String)
-        userId,
-        imageId, // Pass the imageId (String)
+        imageFile.path,
+        metadata['userId'],
+        metadata['_id'],
       );
 
-      // Update metadata in MongoDB with Supabase URL and isUploaded: true
-      print('Upload successful. Updating metadata $imageId...');
+      // Update MongoDB with Supabase URL
       await _storageService.updateImageUrl(
-          imageId: imageId,
-          supabaseUrl: supabaseUrl,
-          token: context.read<AuthProvider>().token!);
-      print('Metadata update successful.');
-
-      Navigator.of(context).pop(); // Close loading dialog
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Image uploaded successfully')),
+        imageId: metadata['_id'],
+        supabaseUrl: supabaseUrl,
+        token: token,
       );
-      _loadImages(); // Refresh the image list to reflect upload status
+
+      // Delete the local file after successful upload
+      if (await imageFile.exists()) {
+        await imageFile.delete();
+        print('Deleted local file after successful upload: ${imageFile.path}');
+      }
+
+      // Remove from offline images if it exists there
+      final offlineDataDir = await getApplicationDocumentsDirectory();
+      final offlineDataFile =
+          File('${offlineDataDir.path}/offline_images.json');
+      if (await offlineDataFile.exists()) {
+        final content = await offlineDataFile.readAsString();
+        final offlineImages =
+            List<Map<String, dynamic>>.from(json.decode(content));
+        final updatedOfflineImages = offlineImages
+            .where((img) => img['localPath'] != imageFile.path)
+            .toList();
+        await offlineDataFile.writeAsString(json.encode(updatedOfflineImages));
+      }
+
+      Navigator.of(context).pop();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text(
+                'Image uploaded successfully and removed from local storage')),
+      );
+      _loadImages(); // Reload images after upload
     } catch (e) {
-      Navigator.of(context).pop(); // Close loading dialog
-      print('Error uploading image: $e');
+      Navigator.of(context).pop();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error uploading image: $e')),
       );
+    }
+  }
+
+  Future<void> _showClearLocalStorageDialog() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Clear Local Storage'),
+          content: const Text(
+            'This will delete all locally stored images that haven\'t been uploaded to the cloud. This action cannot be undone. Are you sure?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              style: TextButton.styleFrom(
+                foregroundColor: Colors.red,
+              ),
+              child: const Text('Clear'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed == true) {
+      await _clearLocalStorage();
+    }
+  }
+
+  Future<void> _clearLocalStorage() async {
+    try {
+      setState(() => _isLoading = true);
+
+      // Get the local directory
+      final localDir = await getApplicationDocumentsDirectory();
+
+      // Delete all image files
+      final files = await localDir.list().toList();
+      for (var file in files) {
+        if (file.path.toLowerCase().endsWith('.jpg') ||
+            file.path.toLowerCase().endsWith('.jpeg') ||
+            file.path.toLowerCase().endsWith('.png')) {
+          await File(file.path).delete();
+        }
+      }
+
+      // Delete offline images metadata file
+      final offlineDataFile = File('${localDir.path}/offline_images.json');
+      if (await offlineDataFile.exists()) {
+        await offlineDataFile.delete();
+      }
+
+      // Update the UI
+      setState(() {
+        _allUserImagesMetadata = _allUserImagesMetadata
+            .where((img) => img['isUploaded'] == true)
+            .toList();
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Local storage cleared successfully')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error clearing local storage: $e')),
+        );
+      }
+    } finally {
+      setState(() => _isLoading = false);
     }
   }
 }

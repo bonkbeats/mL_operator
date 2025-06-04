@@ -33,27 +33,53 @@ class StorageService {
     final savedImage = File('${directory.path}/$fileName');
     await imageFile.copy(savedImage.path);
 
-    // Create metadata entry in MongoDB
-    final response = await http.post(
-      Uri.parse('$apiUrl/images'), // Use /images route for metadata
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $token',
-      },
-      body: json.encode({
-        'localPath': savedImage.path,
-        // isUploaded will default to false in the backend model
-      }),
-    );
+    // Check if we're online
+    final isOnline = await isConnected();
+    Map<String, dynamic> metadata;
 
-    if (response.statusCode != 201) {
-      // If backend saving fails, we still saved locally. Maybe log the error.
-      print(
-          'Backend metadata save failed: ${response.statusCode} - ${response.body}');
-      // Optionally, throw an exception or return a result indicating partial failure
-      throw Exception('Failed to save image metadata to backend');
+    if (isOnline) {
+      // Create metadata entry in MongoDB
+      final response = await http.post(
+        Uri.parse('$apiUrl/images'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: json.encode({
+          'localPath': savedImage.path,
+        }),
+      );
+
+      if (response.statusCode != 201) {
+        print(
+            'Backend metadata save failed: ${response.statusCode} - ${response.body}');
+        throw Exception('Failed to save image metadata to backend');
+      }
+      metadata = json.decode(response.body);
+    } else {
+      // Create local metadata when offline
+      metadata = {
+        '_id': _uuid.v4(), // Generate a temporary ID
+        'localPath': savedImage.path,
+        'isUploaded': false,
+        'createdAt': DateTime.now().toIso8601String(),
+        'isOffline': true, // Mark as offline entry
+      };
+
+      // Save to local storage for later sync
+      final offlineDataDir = await getApplicationDocumentsDirectory();
+      final offlineDataFile =
+          File('${offlineDataDir.path}/offline_images.json');
+
+      List<Map<String, dynamic>> offlineImages = [];
+      if (await offlineDataFile.exists()) {
+        final content = await offlineDataFile.readAsString();
+        offlineImages = List<Map<String, dynamic>>.from(json.decode(content));
+      }
+
+      offlineImages.add(metadata);
+      await offlineDataFile.writeAsString(json.encode(offlineImages));
     }
-    final metadata = json.decode(response.body);
 
     return {
       'localPath': savedImage.path,
@@ -328,5 +354,85 @@ class StorageService {
       throw Exception('Failed to update image URL');
     }
     print('Successfully updated image URL $imageId');
+  }
+
+  // Sync offline images to backend when internet is available
+  Future<void> syncOfflineImages(String token) async {
+    if (!await isConnected()) {
+      print('Still offline. Cannot sync offline images.');
+      return;
+    }
+
+    try {
+      final offlineDataDir = await getApplicationDocumentsDirectory();
+      final offlineDataFile =
+          File('${offlineDataDir.path}/offline_images.json');
+
+      if (!await offlineDataFile.exists()) {
+        print('No offline images to sync.');
+        return;
+      }
+
+      final content = await offlineDataFile.readAsString();
+      final offlineImages =
+          List<Map<String, dynamic>>.from(json.decode(content));
+
+      if (offlineImages.isEmpty) {
+        print('No offline images to sync.');
+        return;
+      }
+
+      print('Found ${offlineImages.length} offline images to sync.');
+
+      for (var image in offlineImages) {
+        try {
+          // Save to MongoDB
+          final response = await http.post(
+            Uri.parse('$apiUrl/images'),
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $token',
+            },
+            body: json.encode({
+              'localPath': image['localPath'],
+            }),
+          );
+
+          if (response.statusCode == 201) {
+            final savedMetadata = json.decode(response.body);
+            final imageId = savedMetadata['_id'];
+            final userId = savedMetadata['userId'];
+
+            // Upload to Supabase
+            final supabaseUrl = await saveImageToSupabase(
+              image['localPath'],
+              userId,
+              imageId,
+            );
+
+            // Update MongoDB with Supabase URL
+            await updateImageUrl(
+              imageId: imageId,
+              supabaseUrl: supabaseUrl,
+              token: token,
+            );
+
+            print('Successfully synced offline image ${image['_id']}');
+          } else {
+            print(
+                'Failed to sync offline image ${image['_id']}: ${response.statusCode} - ${response.body}');
+          }
+        } catch (e) {
+          print('Error syncing offline image ${image['_id']}: $e');
+          // Continue with next image even if one fails
+        }
+      }
+
+      // Clear offline images file after successful sync
+      await offlineDataFile.delete();
+      print('Cleared offline images file after sync.');
+    } catch (e) {
+      print('Error during offline sync: $e');
+    }
   }
 }

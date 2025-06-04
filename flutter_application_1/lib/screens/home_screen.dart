@@ -34,18 +34,92 @@ class _HomeScreenState extends State<HomeScreen> {
   double? _similarity;
 
   Future<void> detectEdgeImage({bool fromGallery = false}) async {
-    if (fromGallery) {
-      final ImagePicker picker = ImagePicker();
-      final XFile? image = await picker.pickImage(source: ImageSource.gallery);
-      if (image != null) {
-        final bytes = await File(image.path).readAsBytes();
+    try {
+      if (fromGallery) {
+        final ImagePicker picker = ImagePicker();
+        final XFile? image =
+            await picker.pickImage(source: ImageSource.gallery);
+        if (image != null) {
+          final bytes = await File(image.path).readAsBytes();
+          img_pkg.Image? original = img_pkg.decodeImage(bytes);
+          if (original != null) {
+            final processedBytes = img_pkg.encodeJpg(original);
+            final directory = await getApplicationSupportDirectory();
+            final imagePath = path_util.join(directory.path,
+                "${DateTime.now().millisecondsSinceEpoch}.jpeg");
+            await File(imagePath).writeAsBytes(processedBytes);
+            ui.decodeImageFromList(processedBytes, (ui.Image img) {
+              final aspectRatio = img.width / img.height;
+              final isA4 = aspectRatio >= .68 && aspectRatio <= .75;
+              if (mounted) {
+                setState(() {
+                  _imagePath = imagePath;
+                  _imageWidth = img.width;
+                  _imageHeight = img.height;
+                  _aspectRatio = aspectRatio;
+                  _isA4 = isA4;
+                  _similarity = null;
+                });
+              }
+            });
+          }
+        }
+        return;
+      }
+
+      // Request camera permission
+      final status = await Permission.camera.request();
+      if (!status.isGranted) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Camera permission is required')),
+          );
+        }
+        return;
+      }
+
+      // Get temporary directory for the image
+      final directory = await getTemporaryDirectory();
+      final String imagePath = path_util.join(
+          directory.path, "${DateTime.now().millisecondsSinceEpoch}.jpg");
+
+      // Show loading indicator
+      if (mounted) {
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (BuildContext context) {
+            return const Center(child: CircularProgressIndicator());
+          },
+        );
+      }
+
+      // Scan document using edge_detection
+      final bool success = await EdgeDetection.detectEdge(
+        imagePath,
+        canUseGallery: false,
+        androidScanTitle: 'Scan Document',
+        androidCropTitle: 'Crop Document',
+        androidCropBlackWhiteTitle: 'Black & White',
+        androidCropReset: 'Reset',
+      );
+
+      // Hide loading indicator
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
+
+      if (success) {
+        final bytes = await File(imagePath).readAsBytes();
         img_pkg.Image? original = img_pkg.decodeImage(bytes);
+
         if (original != null) {
           final processedBytes = img_pkg.encodeJpg(original);
           final directory = await getApplicationSupportDirectory();
           final imagePath = path_util.join(
               directory.path, "${DateTime.now().millisecondsSinceEpoch}.jpeg");
           await File(imagePath).writeAsBytes(processedBytes);
+
           ui.decodeImageFromList(processedBytes, (ui.Image img) {
             final aspectRatio = img.width / img.height;
             final isA4 = aspectRatio >= .68 && aspectRatio <= .75;
@@ -61,63 +135,19 @@ class _HomeScreenState extends State<HomeScreen> {
             }
           });
         }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Failed to capture image')),
+          );
+        }
       }
-      return;
-    }
-
-    // Camera capture with document scanner
-    bool isCameraGranted = await Permission.camera.request().isGranted;
-    if (!isCameraGranted) {
-      isCameraGranted =
-          await Permission.camera.request() == PermissionStatus.granted;
-    }
-    if (!isCameraGranted) {
+    } catch (e) {
       if (mounted) {
+        Navigator.of(context).pop(); // Hide loading indicator if showing
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Camera permission denied')),
+          SnackBar(content: Text('Error capturing image: $e')),
         );
-      }
-      return;
-    }
-
-    final directory = await getTemporaryDirectory();
-    final String imagePath = path_util.join(
-        directory.path, "${DateTime.now().millisecondsSinceEpoch}.jpg");
-
-    final bool success = await EdgeDetection.detectEdge(
-      imagePath,
-      canUseGallery: false,
-      androidScanTitle: 'Scan Document',
-      androidCropTitle: 'Crop Document',
-      androidCropBlackWhiteTitle: 'Black & White',
-      androidCropReset: 'Reset',
-    );
-
-    if (success == true) {
-      final bytes = await File(imagePath).readAsBytes();
-      img_pkg.Image? original = img_pkg.decodeImage(bytes);
-
-      if (original != null) {
-        final processedBytes = img_pkg.encodeJpg(original);
-        final directory = await getApplicationSupportDirectory();
-        final imagePath = path_util.join(
-            directory.path, "${DateTime.now().millisecondsSinceEpoch}.jpeg");
-        await File(imagePath).writeAsBytes(processedBytes);
-
-        ui.decodeImageFromList(processedBytes, (ui.Image img) {
-          final aspectRatio = img.width / img.height;
-          final isA4 = aspectRatio >= .68 && aspectRatio <= .75;
-          if (mounted) {
-            setState(() {
-              _imagePath = imagePath;
-              _imageWidth = img.width;
-              _imageHeight = img.height;
-              _aspectRatio = aspectRatio;
-              _isA4 = isA4;
-              _similarity = null;
-            });
-          }
-        });
       }
     }
   }
@@ -215,7 +245,7 @@ class _HomeScreenState extends State<HomeScreen> {
       final token = context.read<AuthProvider>().token;
       if (token == null) return;
 
-      final result = await _storageService.saveImageLocally(
+      await _storageService.saveImageLocally(
         File(_imagePath!),
         token,
       );
@@ -223,9 +253,7 @@ class _HomeScreenState extends State<HomeScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Image saved successfully')),
       );
-
-      // Try to sync to cloud if online
-      await _storageService.syncImagesToCloud(token);
+      // Do NOT sync to cloud here; let user do it from ImagesScreen
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error saving image: $e')),
